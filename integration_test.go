@@ -95,7 +95,7 @@ func TestFsnotifyMultipleOperations(t *testing.T) {
 
 	// Receive events on the event channel on a separate goroutine
 	eventstream := watcher.Events
-	var createReceived, modifyReceived, deleteReceived, renameReceived counter
+	var createReceived, modifyReceived, deleteReceived, renameReceived, closewriteReceived counter
 	done := make(chan bool)
 	go func() {
 		for event := range eventstream {
@@ -113,6 +113,9 @@ func TestFsnotifyMultipleOperations(t *testing.T) {
 				}
 				if event.Op&Rename == Rename {
 					renameReceived.increment()
+				}
+				if event.Op&CloseWrite == CloseWrite {
+					closewriteReceived.increment()
 				}
 			} else {
 				t.Logf("unexpected event received: %s", event)
@@ -175,6 +178,10 @@ func TestFsnotifyMultipleOperations(t *testing.T) {
 	if dReceived+rReceived != 1 {
 		t.Fatalf("incorrect number of rename+delete events received after 500 ms (%d vs %d)", rReceived+dReceived, 1)
 	}
+	cwReceived := closewriteReceived.value()
+	if cwReceived != 2 {
+		t.Fatalf("incorrect number of closewrite events received after 500 ms (%d vs %d)", cwReceived, 2)
+	}
 
 	// Try closing the fsnotify instance
 	t.Log("calling Close()")
@@ -208,7 +215,7 @@ func TestFsnotifyMultipleCreates(t *testing.T) {
 
 	// Receive events on the event channel on a separate goroutine
 	eventstream := watcher.Events
-	var createReceived, modifyReceived, deleteReceived counter
+	var createReceived, modifyReceived, deleteReceived, closewriteReceived counter
 	done := make(chan bool)
 	go func() {
 		for event := range eventstream {
@@ -223,6 +230,9 @@ func TestFsnotifyMultipleCreates(t *testing.T) {
 				}
 				if event.Op&Write == Write {
 					modifyReceived.increment()
+				}
+				if event.Op&CloseWrite == CloseWrite {
+					closewriteReceived.increment()
 				}
 			} else {
 				t.Logf("unexpected event received: %s", event)
@@ -300,6 +310,10 @@ func TestFsnotifyMultipleCreates(t *testing.T) {
 	dReceived := deleteReceived.value()
 	if dReceived != 1 {
 		t.Fatalf("incorrect number of rename+delete events received after 500 ms (%d vs %d)", dReceived, 1)
+	}
+	cwReceived := closewriteReceived.value()
+	if cwReceived != 4 {
+		t.Fatalf("incorrect number of closewrite events received after 500 ms (%d vs %d)", cwReceived, 4)
 	}
 
 	// Try closing the fsnotify instance
